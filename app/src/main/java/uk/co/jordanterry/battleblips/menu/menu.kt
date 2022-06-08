@@ -6,6 +6,8 @@ import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
 import androidx.compose.material.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -24,20 +26,26 @@ fun MenuScreen(
             )
         },
         content = {
-            when (val uiModel = menuViewModel.uiModel.value!!) {
-                is MenuViewModel.UiModel.Loading -> Text(text = "Loading!")
-                is MenuViewModel.UiModel.Loaded -> LoadedMenu(
-                    uiModel = uiModel,
-                    navController = navController
-                )
-            }
+            val uiState by menuViewModel.states.collectAsState(menuViewModel.state)
+            Menu(uiState = uiState, navController = navController)
         }
     )
 }
 
 @Composable
+fun Menu(uiState: MenuState, navController: NavController) {
+    when (uiState) {
+        is MenuState.Loading -> Text(text = "Loading!")
+        is MenuState.Loaded -> LoadedMenu(
+            uiModel = uiState,
+            navController = navController
+        )
+    }
+}
+
+@Composable
 fun LoadedMenu(
-    uiModel: MenuViewModel.UiModel.Loaded,
+    uiModel: MenuState.Loaded,
     navController: NavController
 ) {
     Column(

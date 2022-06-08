@@ -1,81 +1,88 @@
 package uk.co.jordanterry.battleblips.game.board
 
-import uk.co.jordanterry.battleblips.viewmodels.AbsViewModel
+import uk.co.jordanterry.battleblips.game.Grid
+import uk.co.jordanterry.battleblips.game.GridFactory
+import uk.co.jordanterry.battleblips.knit.KnitState
+import uk.co.jordanterry.battleblips.knit.KnitViewModel
 
-class BattleBlipsViewModel : AbsViewModel<BattleBlipsViewModel.UiModel>(
+class BattleBlipsViewModel : KnitViewModel<BattleBlipsViewModel.UiModel>(
     default = UiModel.Loading
 ) {
-    private val keys = "abcdefghijklmnopqrstuvwxyz"
+    private val gridFactory = GridFactory()
+    private val width: Int = 7
+    private val height: Int = 7
+
     init {
-        val width = 7
-        val height = 7
-        _uiModel.postValue(
+        setState<UiModel.Loading> {
             UiModel.Loaded(
-                player = Player("You", createLabeledGrid(width, height)),
-                opponent = Player("Opponent", createGrid(width, height))
+                player = Player.Ready(
+                    name = "You",
+                    grid = createGrid(0),
+                    selected = Selected.None
+                ),
+                opponent = Player.Waiting("Opponent")
             )
-        )
+        }
     }
 
-    private fun createGrid(width: Int, height: Int): Grid {
-        return Grid(
-            width = width,
-            height = height,
-            cells = mutableListOf<Cell>().apply {
-                for (y in (0 until height)) {
-                    for (x in (0 until width)) {
-                        add(Cell.EmptyCell)
-                    }
-                }
-            }
-        )
+    private fun selectCell(index: Int) {
+        setState<UiModel.Loaded>  {
+            val player = this.player as Player.Ready
+            copy(
+                player = player.copy(
+                        grid = createGrid(index),
+                        selected = Selected.Target(index)
+                    )
+            )
+        }
     }
 
-    private fun createLabeledGrid(width: Int, height: Int): Grid {
-        val labeledWidth = width + 1
-        val labeledHeight = height + 1
-        return Grid(
-            width = labeledWidth,
-            height = labeledHeight,
-            cells = mutableListOf<Cell>().apply {
-                for (y in (0 until labeledHeight)) {
-                    for (x in (0 until labeledWidth)) {
-                        when {
-                            x == 0 && y == 0 -> Cell.BlankCell
-                            y % labeledHeight == 0 -> Cell.Label(keys[x - 1].toString())
-                            x % labeledWidth == 0 -> Cell.Label(y.toString())
-                            else -> Cell.EmptyCell
-                        }.also(::add)
-                    }
-                }
-            }
-        )
+    private fun unselectCell() {
+        setState<UiModel.Loaded> {
+            copy(
+                player = (player as Player.Ready).copy(
+                    grid = gridFactory.createLabeledGrid(width, height,0, ::selectCell, ::unselectCell),
+                    selected = Selected.None
+                )
+            )
+        }
     }
 
-    sealed class UiModel {
-        object Loading : UiModel()
+    private fun createGrid(index: Int): Grid {
+        return gridFactory.createLabeledGrid(
+            width,
+            height,
+            index,
+            ::selectCell,
+            ::unselectCell
+        )
+    }
+    sealed interface UiModel : KnitState {
+        object Loading : UiModel
         data class Loaded(
             val player: Player,
             val opponent: Player
-        ) : UiModel()
+        ) : UiModel
     }
-    data class Grid(
-        val width: Int,
-        val height: Int,
-        val cells: List<Cell>
-    )
-    data class Player(
-        val name: String,
-        val grid: Grid
-    )
 
-    sealed interface Cell {
-        data class Label(
-            val text: String,
-        ) : Cell
-        object BlankCell : Cell
-        object EmptyCell : Cell
-        object BlipCell : Cell
-        object HitCell : Cell
+    sealed interface Player {
+        val name: String
+        data class Waiting(
+            override val name: String
+        ) : Player
+        data class SetUp(
+            override val name: String
+        ) : Player
+        data class Ready(
+            override val name: String,
+            val grid: Grid,
+            val selected: Selected = Selected.None
+        ) : Player
+    }
+    sealed interface Selected {
+        object None : Selected
+        data class Target(
+            val index: Int
+        ) : Selected
     }
 }

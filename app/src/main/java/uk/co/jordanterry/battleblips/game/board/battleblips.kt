@@ -4,10 +4,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.tooling.preview.UiMode
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -43,7 +50,7 @@ fun BattleBlipsScreen(
                 val currentDestination = navBackStackEntry?.destination
                 items.forEach { screen ->
                     BottomNavigationItem(
-                        icon = { Icon(Icons.Filled.Favorite, contentDescription = null) },
+                        icon = { Icon(screen.icon, contentDescription = null) },
                         label = { Text(screen.title) },
                         selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                         onClick = {
@@ -66,22 +73,36 @@ fun BattleBlipsScreen(
             }
         }
     ) {
-        when (val uiModel = battleBlipsViewModel.uiModel.value!!) {
-            is BattleBlipsViewModel.UiModel.Loaded -> BattleBlipsLoaded(navHostController, uiModel)
+        val uiModel by battleBlipsViewModel.states.collectAsState(battleBlipsViewModel.state)
+        when (uiModel) {
+            is BattleBlipsViewModel.UiModel.Loaded -> BattleBlipsLoaded(navHostController, uiModel as BattleBlipsViewModel.UiModel.Loaded)
             is BattleBlipsViewModel.UiModel.Loading -> BattleBlipsLoading()
         }
-
     }
 }
 
-sealed class Screen(val route: String,  val title: String) {
-    object Player : Screen("player", "Player")
-    object Opponent : Screen("opponent", "Opponent")
+sealed class Screen(val route: String,  val title: String, val icon: ImageVector) {
+    object Player : Screen("player", "Player", Icons.Filled.Face)
+    object Opponent : Screen("opponent", "Opponent", Icons.Filled.Phone)
 }
 
 @Composable
 fun PlayerScreen(player: BattleBlipsViewModel.Player) {
-    BattleBlipsPlayerGrid(player = player)
+    when (player) {
+        is BattleBlipsViewModel.Player.Ready -> BattleBlipsPlayerGrid(player = player)
+        is BattleBlipsViewModel.Player.SetUp -> BattleBlipsPlayerSetUp()
+        is BattleBlipsViewModel.Player.Waiting -> BattleBlipsPlayerWaiting(player = player)
+    }
+}
+
+@Composable
+fun BattleBlipsPlayerSetUp() {
+
+}
+
+@Composable
+fun BattleBlipsPlayerWaiting(player: BattleBlipsViewModel.Player.Waiting) {
+    Text(text = "Waiting for ${player.name}")
 }
 
 @Composable
